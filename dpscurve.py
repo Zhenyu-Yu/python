@@ -21,6 +21,8 @@ class dpscurve():
         self.curvetype=curvetype
 
     def plot(self):
+        leftshfit=5
+        rightshift=10
         dpsdata=readlevelfile(self.filepath,self.curvetype)
         dpsmap=dpsdata.readlevfile()
         del dpsmap['']#??????????????
@@ -43,12 +45,12 @@ class dpscurve():
         # print(max_risetime,max_falltime,min_risetime,min_falltime)
         for dps in dpsmap:
             # xa=list(map(lambda x:x,np.arange(-max_risetime,-min_falltime+20,0.1)))
-            xa_rise=list(map(lambda x:x,np.arange(-max_risetime,-min_risetime+10,0.1)))
-            xa_fall=list(map(lambda x:x,np.arange(-max_falltime-5,-min_falltime+5,0.1)))
+            xa_rise=list(map(lambda x:x,np.arange(-max_risetime,-min_risetime+rightshift,0.1)))
+            xa_fall=list(map(lambda x:x,np.arange(-max_falltime-leftshfit,-min_falltime+rightshift,0.1)))
             xa=xa_rise+xa_fall
             dpsformat=format(dpsmap[dps][0],dpsmap[dps][1],dpsmap[dps][2],dpsmap[dps][3],dpsmap[dps][4])
-            dpsarrayrise=list(map(lambda x:dpsformat.dpsriseformat(x),np.arange(-max_risetime,-min_risetime+10,0.1)))
-            dpsarrayfall=list(map(lambda x:dpsformat.dpsfallformat(x),np.arange(-max_falltime-5,-min_falltime+5,0.1)))
+            dpsarrayrise=list(map(lambda x:dpsformat.dpsriseformat(x),np.arange(-max_risetime,-min_risetime+rightshift,0.1)))
+            dpsarrayfall=list(map(lambda x:dpsformat.dpsfallformat(x),np.arange(-max_falltime-leftshfit,-min_falltime+rightshift,0.1)))
             dpsarray=dpsarrayrise+dpsarrayfall
             if self.curvetype.__contains__("rise"):
                 plt.title('rise_curve')
@@ -62,6 +64,7 @@ class dpscurve():
                 plt.title('dps_curve')
                 plt.plot(xa,dpsarray,label=dps.__str__())
                 plt.rcParams.update(({'font.size':10}))
+                # plt.text(x=10,y=10,s='You\'d better draw the rise and fall curves in two parts!!!!!!',va='top')
         plt.legend(bbox_to_anchor=(0.95, 1.0), loc='upper left')
         plt.show()
 
@@ -125,15 +128,14 @@ class readlevelfile(dpscurve):
     import argparse
 
 if __name__ == '__main__':
-    try:
+    if len(sys.argv)==3:
        filepath=sys.argv[1]
        curveytpe=sys.argv[2]
-       if curveytpe.__contains__("rise") or curveytpe.__contains__("fall") or curveytpe.__contains__("curve"):
-           pass
-       else:
-           curveytpe="curve"
-    except:
-        print("pls check args...")
-
+    elif len(sys.argv)==2:
+        print("You'd better draw the rise and fall curves in two parts!!!!!!")
+        filepath = sys.argv[1]
+        curveytpe='curve'
+    else:
+        print("pls check args!")
     dps=dpscurve(filepath,curveytpe)
     dps.plot()
