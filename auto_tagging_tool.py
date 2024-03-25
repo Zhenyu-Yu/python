@@ -8,6 +8,7 @@
 
 
 import argparse
+import os.path
 import time
 # import requests
 import json
@@ -30,10 +31,12 @@ class AUTO_TAG:
         self.access_token=''
         self.gitlab_url='http://172.18.32.120:9601'
         self.headers = {'PRIVATE-TOKEN': self.access_token}
-        self.tagname=''
-        self.tagmessage=''
-        self.branch='dev'
-        self.file='tag_info.log'
+        self.tagname = ''
+        self.tagmessage = ''
+        self.branch = 'dev'
+        self.file = 'tag_info.log'
+        self.diff = True
+        self.project ='projects.txt'
 
     def check_url_is_good_return_project_id(self,project_url):
         project_name = '/'.join(project_url.split('/')[-3:]).replace('.git',
@@ -42,6 +45,7 @@ class AUTO_TAG:
         response = requests.get(f"{self.gitlab_url}/api/v4/projects/{encoded_name}", headers=self.headers)
         if response.status_code != 200:
             print(f"failed to connect: {encoded_name} url return: {response.content}")
+            print("pls enter the http url of the project!")
             exit()
         else:
             project_id = response.json()['id']
@@ -56,6 +60,7 @@ class AUTO_TAG:
         }
 
         response = requests.post(tag_url, headers=self.headers, data=tag_data)
+        print("this tag has been finished! project id : ",project_id)
         tag_info = response.json()
         if response.status_code != 201:
             print(f"failed to create tag {tag_url} url return:{tag_info.get('message')}")
@@ -115,15 +120,22 @@ class AUTO_TAG:
         url=[]
         parser = argparse.ArgumentParser()
         parser.add_argument("--url",'-u',default='',type=str,required=False,help='the *.git project url')
+        parser.add_argument("--project", '-p', default='', type=str, required=False, help='the file path of project list')
         parser.add_argument("--tag",'-t',default='',type=str,required=True,help='the tag name')
         parser.add_argument("--message",'-m',default='',type=str,required=False,help='the tag message')
         parser.add_argument("--file",'-f',default='',type=str,required=False,help='the file path of push log')
         parser.add_argument("--branch",'-b',default='dev',type=str,required=False,help='the tag of branch')
-        # parser.add_argument("--accesstoken",'-a',default='',type=str,required=False,help='ur access token')
+        parser.add_argument("--diff", '-d', type=lambda x: (str(x).lower() == 'true'), default=True,required=False,
+                            help="diff the commit")
+        # parser.add_argument("--diff", '-d', default=False, type=bool, required=False, help='diff the commit')
+        parser.add_argument("--accesstoken",'-a',default='',type=str,required=False,help='ur access token')
         args = parser.parse_args()
+        self.access_token=args.accesstoken
         self.tagname=args.tag
         self.tagmessage=args.message
         self.branch=args.branch
+        self.diff=args.diff
+        self.project=args.project
         if args.file != '':
             self.file=args.file
         if args.url != '':
@@ -133,22 +145,46 @@ class AUTO_TAG:
 
 if __name__ == "__main__":
     ############init personal info#####################################
-    access_token=''
-    gitlab_url=''
-
-    ###########if only one project need process########################
+    auto = AUTO_TAG()
     iurl=[]
-    auto=AUTO_TAG()
     iurl=auto.process_args()
+
+    if auto.access_token =='':
+        if os.path.exists('ACCESSTOKEN.txt'):
+            try :
+                with open('ACCESSTOKEN.txt', 'r') as file:
+                    for line in file:
+                        token = line.strip()
+                        auto.access_token = token
+            except Exception as e:
+                print(e)
+        else:
+            print("pls set ur private access token！(ACCESSTOKEN.txt or -a{access token})")
+            exit()
+    else:
+        pass
+
+    auto.headers={'PRIVATE-TOKEN': auto.access_token}
+
+    if auto.diff and not os.path.exists(auto.file):
+        print("if u wanna compare the diff, create the log file first(-f{logname})! or set diff off(-d False)")
+        exit()
+
+    if not os.path.exists(auto.project) and iurl ==[]:
+        print("pls specify the project url, create the project file first(-p{projects_filename})! or single project url(-u{project_url})" )
+        exit()
+    else:
+        pass
+
 
     ###########open the projects.txt，Prepare the project url list#####
     if not iurl:
         try:
-            with open('projects.txt', 'r') as file:
+            with open(auto.project, 'r') as file:
                 for line in file:
-                    project_path = line.strip()
+                    project_path = line.strip('\n')
                     if not project_path.startswith("#"):
-                        iurl.append(line)
+                        iurl.append(project_path)
         except Exception as e:
             print(e)
     ###########Traverse the project url list###########################
@@ -156,27 +192,30 @@ if __name__ == "__main__":
         # print("This URL will be processed:",u)
         iprojectid = auto.check_url_is_good_return_project_id(u)#get the projectid from gitlab
         itaginfo = auto.create_tag(auto.gitlab_url, iprojectid)#push the tag to gitlab and dump the message
-
         current_ipinfo_dict=auto.extract_info(itaginfo)#get current ip info from url on message
-        (ipname,commitvar),=current_ipinfo_dict.items()
-        last_ipinfo_dict=auto.find_the_last_commit_dict(auto.file,ipname)#get the ip last commit info from local log
-        the_ip_commit_if_change=auto.diff_the_commit_history(last_ipinfo_dict,current_ipinfo_dict)
 
-        if package_installed:
-            if the_ip_commit_if_change:
-                print(Fore.GREEN + 'Some Change in this IP:'+str(current_ipinfo_dict))
-                print(Style.RESET_ALL,end="")
+        if auto.diff:
+            (ipname, commitvar), = current_ipinfo_dict.items()
+            last_ipinfo_dict=auto.find_the_last_commit_dict(auto.file,ipname)#get the ip last commit info from local log
+            the_ip_commit_if_change=auto.diff_the_commit_history(last_ipinfo_dict,current_ipinfo_dict)
+
+            if package_installed:
+                if the_ip_commit_if_change:
+                    print(Fore.GREEN + 'Some Change in this IP:'+str(current_ipinfo_dict))
+                    print(Style.RESET_ALL,end="")
+                else:
+                    print(Fore.RED + 'No   Change in this IP:'+str(current_ipinfo_dict))
+                    print(Style.RESET_ALL,end="")
             else:
-                print(Fore.RED + 'No   Change in this IP:'+str(current_ipinfo_dict))
-                print(Style.RESET_ALL,end="")
+                if the_ip_commit_if_change:
+                    print("Some Change in this IP:", current_ipinfo_dict)
+                else:
+                    print("No   Change in this IP:", current_ipinfo_dict)
         else:
-            if the_ip_commit_if_change:
-                print("Some Change in this IP:", current_ipinfo_dict)
-            else:
-                print("No   Change in this IP:", current_ipinfo_dict)
+            pass
 
         auto.write_push_log(itaginfo)#log logs
-        # print("This URL has been processed successfully:", u)
+
 
 
 
