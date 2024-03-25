@@ -9,6 +9,7 @@
 
 import argparse
 import os.path
+import sys
 import time
 # import requests
 import json
@@ -24,7 +25,7 @@ try:
     import requests
 except ImportError:
     print("pls import requests first!!!")
-    exit()
+    sys.exit()
 
 class AUTO_TAG:
     def __init__(self):
@@ -46,7 +47,7 @@ class AUTO_TAG:
         if response.status_code != 200:
             print(f"failed to connect: {encoded_name} url return: {response.content}")
             print("pls enter the http url of the project!")
-            exit()
+            sys.exit()
         else:
             project_id = response.json()['id']
             return project_id
@@ -64,7 +65,7 @@ class AUTO_TAG:
         tag_info = response.json()
         if response.status_code != 201:
             print(f"failed to create tag {tag_url} url return:{tag_info.get('message')}")
-            exit()
+            sys.exit()
         else:
             return tag_info
 
@@ -160,7 +161,7 @@ if __name__ == "__main__":
                 print(e)
         else:
             print("pls set ur private access token！(ACCESSTOKEN.txt or -a{access token})")
-            exit()
+            sys.exit()
     else:
         pass
 
@@ -168,11 +169,11 @@ if __name__ == "__main__":
 
     if auto.diff and not os.path.exists(auto.file):
         print("if u wanna compare the diff, create the log file first(-f{logname})! or set diff off(-d False)")
-        exit()
+        sys.exit()
 
     if not os.path.exists(auto.project) and iurl ==[]:
         print("pls specify the project url, create the project file first(-p{projects_filename})! or single project url(-u{project_url})" )
-        exit()
+        sys.exit()
     else:
         pass
 
